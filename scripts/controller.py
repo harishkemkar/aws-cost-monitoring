@@ -1,8 +1,18 @@
 import subprocess
 import json
 import datetime
+import os
 
-THRESHOLD = 10  # dollars
+def load_settings():
+    """Load threshold and other settings from config/settings.json"""
+    config_path = os.path.join(os.path.dirname(__file__), "..", "config", "settings.json")
+    try:
+        with open(config_path, "r") as f:
+            settings = json.load(f)
+        return settings.get("threshold", 10.0)  # default to 10 if not set
+    except Exception as e:
+        print(f"Error loading settings.json: {e}")
+        return 10.0
 
 def get_month_dates():
     today = datetime.date.today()
@@ -61,16 +71,19 @@ def print_full_report(data, month_label):
 
 def trigger_delete():
     print("Threshold exceeded. Running delete script...")
-    subprocess.run(["python", "scripts\\aws_cleanup.py"])  # your cleanup script
+    subprocess.run(["python", "scripts\\aws_cleanup.py"])  # adjust path if needed
 
 def main():
+    threshold = load_settings()
+    print(f"Threshold set to: {threshold} USD\n")
+
     start_date, end_date, month_label = get_month_dates()
     data = run_aws_cost_explorer(start_date, end_date)
     month_total = print_full_report(data, month_label)
 
     print(f"\n>>> Monthly Total So Far: {month_total:.2f} USD <<<\n")
 
-    if month_total > THRESHOLD:
+    if month_total > threshold:
         trigger_delete()
     else:
         print("Usage within limit. No action taken.")
